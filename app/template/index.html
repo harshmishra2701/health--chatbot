@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Health AI Assistant</title>
+
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+
+  <div class="layout">
+
+    <aside class="sidebar">
+
+      <div class="logo">
+        🏥 HealthAI
+      </div>
+
+      <ul>
+        <li>Dashboard</li>
+        <li>AI Assistant</li>
+        <li>Symptom Checker</li>
+        <li>Hospitals</li>
+        <li>History</li>
+      </ul>
+
+    </aside>
+
+    <main class="main-content">
+
+      <div class="top-header">
+
+        <h1>
+          AI Healthcare Assistant
+        </h1>
+
+        <p>
+          Describe your symptoms
+        </p>
+
+      </div>
+
+      <div class="stats">
+
+        <div class="card">
+          Health Score
+        </div>
+
+        <div class="card">
+          Last Checkup
+        </div>
+
+        <div class="card">
+          AI Suggestions
+        </div>
+
+      </div>
+
+      <div class="chat-section">
+
+        <div id="chat-box" class="chat-box">
+
+          <div class="bot-message">
+            Hello 👋
+            How can I help today?
+          </div>
+
+        </div>
+
+        <div class="input-area">
+
+          <input type="text" id="message" placeholder="Describe symptoms...">
+
+          <button onclick="sendMessage()">
+            Send
+          </button>
+
+        </div>
+
+      </div>
+
+    </main>
+
+    <aside class="right-panel">
+
+      <div class="panel-card">
+
+        <h3>
+          Emergency Status
+        </h3>
+
+        <p>
+          Normal
+        </p>
+
+      </div>
+
+      <div class="panel-card">
+
+        <h3>
+          Nearby Hospitals
+        </h3>
+
+        <div id="hospitals">
+          No data
+        </div>
+
+      </div>
+
+    </aside>
+
+  </div>
+
+  <script> 
+  const sessionId = crypto.randomUUID();
+
+    const chatBox = document.getElementById("chat-box");
+    const messageInput = document.getElementById("message");
+
+    async function sendMessage() {
+
+      const text = messageInput.value.trim();
+
+      if (!text) {
+        return;
+      }
+
+      chatBox.innerHTML += `
+        <div class="user-message">
+            ${text}
+        </div>
+    `;
+
+      messageInput.value = "";
+
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      try {
+
+        const response = await fetch("/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            session_id: sessionId,
+            message: text
+          })
+        });
+
+        const data = await response.json();
+
+        console.log("API Response:", data);
+
+        let botReply = "";
+
+        if (data.reply) {
+          botReply = data.reply;
+        } else if (data.message) {
+          botReply = data.message;
+        } else {
+          botReply = "No response received from server.";
+        }
+
+        chatBox.innerHTML += `
+            <div class="bot-message">
+                ${botReply}
+            </div>
+        `;
+
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+      } catch (error) {
+
+        console.error(error);
+
+        chatBox.innerHTML += `
+            <div class="bot-message">
+                Unable to connect to server.
+            </div>
+        `;
+      }
+    }
+
+    messageInput.addEventListener(
+      "keypress",
+      function (event) {
+        if (event.key === "Enter") {
+          sendMessage();
+        }
+      }
+    );
+
+
+  </script>
+
+</body>
+
+</html>
