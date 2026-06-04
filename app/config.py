@@ -13,5 +13,7 @@ class Settings:
 
     MAX_HISTORY_MESSAGES = int(os.getenv("MAX_HISTORY_MESSAGES", 10))
 
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+
 
 settings = Settings()
