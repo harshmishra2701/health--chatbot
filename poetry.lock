@@ -326,6 +326,18 @@ test = ["appdirs", "more_itertools", "packaging", "pygments", "pytest (>=6,!=8.1
 type = ["pytest-mypy"]
 
 [[package]]
+name = "pathlib"
+version = "1.0.1"
+description = "Object-oriented filesystem paths"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+    {file = "pathlib-1.0.1-py3-none-any.whl", hash = "sha256:f35f95ab8b0f59e6d354090350b44a80a80635d22efdedfa84c7ad1cf0a74147"},
+    {file = "pathlib-1.0.1.tar.gz", hash = "sha256:6940718dfc3eff4258203ad5021090933e5c04707d5ca8cc9e73c94a7894ea9f"},
+]
+
+[[package]]
 name = "pydantic"
 version = "2.13.4"
 description = "Data validation using Python type hints"
@@ -658,4 +670,4 @@ standard = ["colorama (>=0.4) ; sys_platform == \"win32\"", "httptools (>=0.6.3)
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.10,<3.13"
-content-hash = "e8bdf93728d8bd10f6b4afab5c2739cf64147fd9f443dad2e3b2e9b24cd4bc2e"
+content-hash = "26e4e728c245f90fea95346714fd4e466b6aad56328c9f31eb2a535245810fb4"
