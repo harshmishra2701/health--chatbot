@@ -90,7 +90,7 @@
           Emergency Status
         </h3>
 
-        <p>
+        <p id="emergency-status">
           Normal
         </p>
 
@@ -112,14 +112,46 @@
 
   </div>
 
-  <script> 
-  const sessionId = crypto.randomUUID();
+  <script>
+    const sessionId = crypto.randomUUID();
 
     const chatBox = document.getElementById("chat-box");
     const messageInput = document.getElementById("message");
+    const hospitalsDiv = document.getElementById("hospitals");
+    const emergencyStatus = document.getElementById("emergency-status");
+
+    let userLat = null;
+    let userLng = null;
+
+    // Try to get location once on page load
+    function requestLocation() {
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+          console.warn("Geolocation not supported by this browser.");
+          resolve();
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            userLat = pos.coords.latitude;
+            userLng = pos.coords.longitude;
+            console.log("Location captured:", userLat, userLng);
+            resolve();
+          },
+          (err) => {
+            console.warn("Location not available:", err.message);
+            resolve();
+          },
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+        );
+      });
+    }
+
+    // Request location on page load
+    requestLocation();
 
     async function sendMessage() {
-
       const text = messageInput.value.trim();
 
       if (!text) {
@@ -130,11 +162,15 @@
         <div class="user-message">
             ${text}
         </div>
-    `;
+      `;
 
       messageInput.value = "";
-
       chatBox.scrollTop = chatBox.scrollHeight;
+
+      // Re-attempt to get fresh location before sending (in case it failed on load)
+      if (userLat === null || userLng === null) {
+        await requestLocation();
+      }
 
       try {
 
@@ -145,7 +181,9 @@
           },
           body: JSON.stringify({
             session_id: sessionId,
-            message: text
+            message: text,
+            latitude: userLat,
+            longitude: userLng
           })
         });
 
@@ -153,26 +191,47 @@
 
         console.log("API Response:", data);
 
-        let botReply = "";
+        const botReply = data.reply || "No response received from server.";
 
-        if (data.reply) {
-          botReply = data.reply;
-        } else if (data.message) {
-          botReply = data.message;
-        } else {
-          botReply = "No response received from server.";
-        }
+        const emergencyClass = data.is_emergency ? "bot-message emergency" : "bot-message";
 
         chatBox.innerHTML += `
-            <div class="bot-message">
+            <div class="${emergencyClass}">
                 ${botReply}
             </div>
         `;
 
+        // Update emergency status panel
+        if (data.is_emergency) {
+          emergencyStatus.textContent = "⚠️ Emergency Detected";
+          emergencyStatus.style.color = "#ef4444";
+          emergencyStatus.style.fontWeight = "700";
+        }
+
+        // Update hospitals panel
+        if (data.hospitals && data.hospitals.length > 0) {
+          let html = "";
+
+          data.hospitals.forEach(h => {
+            html += `
+              <div class="hospital-item">
+                <strong>${h.name}</strong><br>
+                ${h.address}<br>
+                ${h.rating ? "⭐ " + h.rating : ""}
+                <br>
+                <a href="${h.maps_url}" target="_blank">View on Map</a>
+              </div>
+            `;
+          });
+
+          hospitalsDiv.innerHTML = html;
+        } else if (data.is_emergency && (userLat === null || userLng === null)) {
+          hospitalsDiv.innerHTML = `<p style="color:#ef4444;">Location access denied. Please enable location permissions in your browser to find nearby hospitals.</p>`;
+        }
+
         chatBox.scrollTop = chatBox.scrollHeight;
 
       } catch (error) {
-
         console.error(error);
 
         chatBox.innerHTML += `
@@ -191,7 +250,6 @@
         }
       }
     );
-
 
   </script>
 

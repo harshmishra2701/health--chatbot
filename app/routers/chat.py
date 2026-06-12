@@ -1,58 +1,82 @@
 from fastapi import APIRouter
-from app.models.chat_model import ChatRequest
+from app.models.chat_model import ChatRequest, ChatResponse
+from app.database.crud import save_message, get_history
+from app.services.gemini_service import (
+    get_gemini_reply,
+    is_emergency_reply,
+    clean_reply,
+)
+from app.services.maps_service import get_nearby_hospitals
+from app.config import settings
 
 router = APIRouter()
 
-user_sessions = {}
+# Quick keywords that directly trigger emergency hospital lookup
+# without needing a full Gemini round trip
+EMERGENCY_KEYWORDS = {
+    "emergency",
+    "help",
+    "sos",
+    "ambulance",
+    "hospital",
+    "hospitals",
+    "urgent",
+}
 
 
-@router.post("/chat")
+@router.post("/chat", response_model=ChatResponse)
 async def chat(request: ChatRequest):
-
     session_id = request.session_id
     message = request.message.strip()
+    message_lower = message.lower()
 
-    if session_id not in user_sessions:
-        user_sessions[session_id] = {
-            "step": "age",
-            "symptom": message,
-            "age": None,
-            "diabetes": None,
-            "bp": None,
-        }
+    # Save user message
+    await save_message(session_id, "user", message)
 
-        return {"reply": "I understand you're not feeling well. What is your age?"}
+    # --- Quick emergency shortcut ---
+    if message_lower in EMERGENCY_KEYWORDS:
+        reply_text = "🚨 Showing nearby hospitals. If this is a real emergency, please call your local emergency number immediately."
 
-    session = user_sessions[session_id]
+        hospitals = []
 
-    if session["step"] == "age":
-        session["age"] = message
-        session["step"] = "diabetes"
+        if request.latitude is not None and request.longitude is not None:
+            hospitals = await get_nearby_hospitals(request.latitude, request.longitude)
+        else:
+            reply_text += (
+                "\n📍 Please allow location access so I can find nearby hospitals."
+            )
 
-        return {"reply": "Do you have diabetes? (Yes/No)"}
+        await save_message(session_id, "assistant", reply_text)
 
-    elif session["step"] == "diabetes":
-        session["diabetes"] = message
-        session["step"] = "bp"
+        return ChatResponse(
+            reply=reply_text,
+            is_emergency=True,
+            hospitals=hospitals,
+        )
 
-        return {"reply": "Do you have high blood pressure (BP)? (Yes/No)"}
+    # --- Normal flow via Gemini ---
+    history = await get_history(session_id)
+    history = history[-(settings.MAX_HISTORY_MESSAGES * 2) :]
 
-    elif session["step"] == "bp":
-        session["bp"] = message
-        session["step"] = "complete"
+    raw_reply = await get_gemini_reply(history[:-1], message)
 
-        return {
-            "reply": f"""
-Thank you for providing the information.
+    is_emergency = is_emergency_reply(raw_reply)
+    reply_text = clean_reply(raw_reply)
 
-Symptom: {session["symptom"]}
-Age: {session["age"]}
-Diabetes: {session["diabetes"]}
-Blood Pressure: {session["bp"]}
+    hospitals = []
 
-This is general health information only.
-Please consult a doctor for professional medical advice.
-"""
-        }
+    if is_emergency:
+        if request.latitude is not None and request.longitude is not None:
+            hospitals = await get_nearby_hospitals(request.latitude, request.longitude)
+        else:
+            reply_text += (
+                "\n\n📍 Please share your location so I can find nearby hospitals."
+            )
 
-    return {"reply": "Please provide more details about your symptoms."}
+    await save_message(session_id, "assistant", reply_text)
+
+    return ChatResponse(
+        reply=reply_text,
+        is_emergency=is_emergency,
+        hospitals=hospitals,
+    )

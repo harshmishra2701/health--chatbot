@@ -109,3 +109,23 @@ body {
   background: #f8fafc;
   margin-bottom: 20px;
 }
+.bot-message.emergency {
+  background: #fee2e2;
+  border: 1px solid #ef4444;
+  color: #991b1b;
+  font-weight: 600;
+}
+
+.hospital-item {
+  background: white;
+  padding: 10px;
+  border-radius: 10px;
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.hospital-item a {
+  color: #2563eb;
+  font-weight: 600;
+  text-decoration: none;
+}
