@@ -1,12 +1,12 @@
 [tool.poetry]
-package-mode = false
+packages = [{include = "app"}]
 
 [project]
 name = "health-chat-bot"
 version = "0.1"
 description = "health chat bot for the user to conselt with ai"
 authors = [
-    {name = "Your Name", email = "you@example.com"}
+    {name = "harsh mishra", email = "mishraharsh649@gmail.com"}
 ]
 license = {text = "MIT"}
 readme = "README.md"
@@ -26,7 +26,7 @@ dependencies = [
 ]
 
 [tool.poetry.scripts]
-health-chatbot = "app.main:run"
+healthbot = "app.cli:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

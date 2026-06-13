@@ -1,71 +1,51 @@
 import httpx
 
-OVERPASS_URLS = [
-    "https://overpass-api.de/api/interpreter",
-    "https://overpass.kumi.systems/api/interpreter",
-]
+NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 
 HEADERS = {
-    "User-Agent": "Mozilla/5.0 (HealthChatbot/1.0; contact: your-email@example.com)",
-    "Accept": "*/*",
+    "User-Agent": "HealthChatbotApp/1.0",
 }
 
 
 async def get_nearby_hospitals(latitude: float, longitude: float, radius: int = 10000):
     """
-    Fetch nearby hospitals using OpenStreetMap's Overpass API (free, no API key required).
-    Tries multiple Overpass mirrors as fallback.
+    Fetch nearby hospitals using OpenStreetMap's Nominatim search API
+    (free, no API key required).
     """
 
-    query = (
-        f"[out:json][timeout:25];"
-        f"("
-        f'node["amenity"="hospital"](around:{radius},{latitude},{longitude});'
-        f'way["amenity"="hospital"](around:{radius},{latitude},{longitude});'
-        f'relation["amenity"="hospital"](around:{radius},{latitude},{longitude});'
-        f");"
-        f"out center 5;"
-    )
+    # Build a bounding box around the user's location (~0.1 degrees ~ 10km)
+    delta = 0.1
+    left = longitude - delta
+    right = longitude + delta
+    top = latitude + delta
+    bottom = latitude - delta
 
-    data = None
+    params = {
+        "q": "hospital",
+        "format": "json",
+        "limit": 5,
+        "bounded": 1,
+        "viewbox": f"{left},{top},{right},{bottom}",
+        "addressdetails": 1,
+    }
 
-    for url in OVERPASS_URLS:
-        try:
-            async with httpx.AsyncClient(timeout=30, headers=HEADERS) as client:
-                response = await client.post(url, content=f"data={query}")
-                response.raise_for_status()
-                data = response.json()
-                print(
-                    f"Overpass success from {url}, elements found: {len(data.get('elements', []))}"
-                )
-                break  # success, stop trying other mirrors
-        except Exception as e:
-            print(f"Overpass error from {url}: {type(e).__name__}: {e!r}")
-            continue
-
-    if data is None:
+    try:
+        async with httpx.AsyncClient(timeout=20, headers=HEADERS) as client:
+            response = await client.get(NOMINATIM_URL, params=params)
+            response.raise_for_status()
+            results = response.json()
+            print(f"Nominatim success, results found: {len(results)}")
+    except Exception as e:
+        print(f"Nominatim error: {type(e).__name__}: {e!r}")
         return []
 
     hospitals = []
 
-    for element in data.get("elements", [])[:5]:
-        tags = element.get("tags", {})
-        name = tags.get("name", "Unnamed Hospital")
-
-        address_parts = [
-            tags.get("addr:housenumber"),
-            tags.get("addr:street"),
-            tags.get("addr:city"),
-        ]
-        address = ", ".join([p for p in address_parts if p]) or "Address not available"
-
-        if element["type"] == "node":
-            lat = element.get("lat")
-            lon = element.get("lon")
-        else:
-            center = element.get("center", {})
-            lat = center.get("lat")
-            lon = center.get("lon")
+    for place in results:
+        name = place.get("display_name", "Unknown Hospital").split(",")[0]
+        address = place.get("display_name", "Address not available")
+        lat = place.get("lat")
+        lon = place.get("lon")
 
         maps_url = (
             f"https://www.openstreetmap.org/?mlat={lat}&mlon={lon}#map=18/{lat}/{lon}"
