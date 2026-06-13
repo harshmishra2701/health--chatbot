@@ -209,24 +209,28 @@
         }
 
         // Update hospitals panel
-        if (data.hospitals && data.hospitals.length > 0) {
-          let html = "";
+        if (data.is_emergency) {
+          if (data.hospitals && data.hospitals.length > 0) {
+            let html = "";
 
-          data.hospitals.forEach(h => {
-            html += `
-              <div class="hospital-item">
-                <strong>${h.name}</strong><br>
-                ${h.address}<br>
-                ${h.rating ? "⭐ " + h.rating : ""}
-                <br>
-                <a href="${h.maps_url}" target="_blank">View on Map</a>
-              </div>
-            `;
-          });
+            data.hospitals.forEach(h => {
+              html += `
+                <div class="hospital-item">
+                  <strong>${h.name}</strong><br>
+                  ${h.address}<br>
+                  ${h.rating ? "⭐ " + h.rating : ""}
+                  <br>
+                  <a href="${h.maps_url}" target="_blank">View on Map</a>
+                </div>
+              `;
+            });
 
-          hospitalsDiv.innerHTML = html;
-        } else if (data.is_emergency && (userLat === null || userLng === null)) {
-          hospitalsDiv.innerHTML = `<p style="color:#ef4444;">Location access denied. Please enable location permissions in your browser to find nearby hospitals.</p>`;
+            hospitalsDiv.innerHTML = html;
+          } else if (userLat === null || userLng === null) {
+            hospitalsDiv.innerHTML = `<p style="color:#ef4444;">Location access denied. Please enable location permissions in your browser to find nearby hospitals.</p>`;
+          } else {
+            hospitalsDiv.innerHTML = `<p>No hospitals found nearby. Try calling local emergency services directly.</p>`;
+          }
         }
 
         chatBox.scrollTop = chatBox.scrollHeight;

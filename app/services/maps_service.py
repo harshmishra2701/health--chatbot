@@ -11,7 +11,7 @@ HEADERS = {
 }
 
 
-async def get_nearby_hospitals(latitude: float, longitude: float, radius: int = 5000):
+async def get_nearby_hospitals(latitude: float, longitude: float, radius: int = 10000):
     """
     Fetch nearby hospitals using OpenStreetMap's Overpass API (free, no API key required).
     Tries multiple Overpass mirrors as fallback.
