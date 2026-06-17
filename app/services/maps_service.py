@@ -31,8 +31,13 @@ async def get_nearby_hospitals(latitude: float, longitude: float, radius: int = 
 
     for url in OVERPASS_URLS:
         try:
-            async with httpx.AsyncClient(timeout=30, headers=HEADERS) as client:
-                response = await client.post(url, content=f"data={query}")
+            async with httpx.AsyncClient(timeout=60, headers=HEADERS) as client:
+                # Use data= (form-encoded dict) instead of content= so httpx
+                # properly URL-encodes the query AND sets
+                # Content-Type: application/x-www-form-urlencoded.
+                # Sending raw content= without this header is what causes
+                # the 406 Not Acceptable from overpass-api.de.
+                response = await client.post(url, data={"data": query})
                 response.raise_for_status()
                 data = response.json()
                 print(
