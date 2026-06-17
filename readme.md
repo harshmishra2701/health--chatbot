@@ -150,7 +150,7 @@ MONGODB_URI=mongodb+srv://<username>:<password>@cluster0.mongodb.net/?retryWrite
 ## ▶️ Running the App
 
 ```bash
-poetry run uvicorn app.main:app --reload
+poetry run healthbot
 ```
 
 The app will be available at:
