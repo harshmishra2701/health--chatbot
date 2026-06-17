@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <title>Health AI Assistant</title>
+
+  <link rel="stylesheet" href="/static/css/style.css">
+</head>
+
+<body>
+
+  <div class="layout">
+
+    <aside class="sidebar">
+
+      <div class="logo">
+        🏥 HealthAI
+      </div>
+
+      <ul>
+        <li>Dashboard</li>
+        <li>AI Assistant</li>
+        <li>Symptom Checker</li>
+        <li>Hospitals</li>
+        <li>History</li>
+      </ul>
+
+    </aside>
+
+    <main class="main-content">
+
+      <div class="top-header">
+
+        <h1>
+          AI Healthcare Assistant
+        </h1>
+
+        <p>
+          Describe your symptoms
+        </p>
+
+      </div>
+
+      <div class="stats">
+
+        <div class="card">
+          Health Score
+        </div>
+
+        <div class="card">
+          Last Checkup
+        </div>
+
+        <div class="card">
+          AI Suggestions
+        </div>
+
+      </div>
+
+      <div class="chat-section">
+
+        <div id="chat-box" class="chat-box">
+
+          <div class="bot-message">
+            Hello 👋
+            How can I help today?
+          </div>
+
+        </div>
+
+        <div class="input-area">
+
+          <input type="text" id="message" placeholder="Describe symptoms...">
+
+          <button onclick="sendMessage()">
+            Send
+          </button>
+
+        </div>
+
+      </div>
+
+    </main>
+
+    <aside class="right-panel">
+
+      <div class="panel-card">
+
+        <h3>
+          Emergency Status
+        </h3>
+
+        <p id="emergency-status">
+          Normal
+        </p>
+
+      </div>
+
+      <div class="panel-card">
+
+        <h3>
+          Nearby Hospitals
+        </h3>
+
+        <div id="hospitals">
+          No data
+        </div>
+
+      </div>
+
+    </aside>
+
+  </div>
+
+  <script>
+    const sessionId = crypto.randomUUID();
+
+    const chatBox = document.getElementById("chat-box");
+    const messageInput = document.getElementById("message");
+    const hospitalsDiv = document.getElementById("hospitals");
+    const emergencyStatus = document.getElementById("emergency-status");
+
+    let userLat = null;
+    let userLng = null;
+
+    // Try to get location once on page load
+    function requestLocation() {
+      return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+          console.warn("Geolocation not supported by this browser.");
+          resolve();
+          return;
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            userLat = pos.coords.latitude;
+            userLng = pos.coords.longitude;
+            console.log("Location captured:", userLat, userLng);
+            resolve();
+          },
+          (err) => {
+            console.warn("Location not available:", err.message);
+            resolve();
+          },
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+        );
+      });
+    }
+
+    // Request location on page load
+    requestLocation();
+
+    async function sendMessage() {
+      const text = messageInput.value.trim();
+
+      if (!text) {
+        return;
+      }
+
+      chatBox.innerHTML += `
+        <div class="user-message">
+            ${text}
+        </div>
+      `;
+
+      messageInput.value = "";
+      chatBox.scrollTop = chatBox.scrollHeight;
+
+      // Re-attempt to get fresh location before sending (in case it failed on load)
+      if (userLat === null || userLng === null) {
+        await requestLocation();
+      }
+
+      try {
+
+        const response = await fetch("/chat", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            session_id: sessionId,
+            message: text,
+            latitude: userLat,
+            longitude: userLng
+          })
+        });
+
+        const data = await response.json();
+
+        console.log("API Response:", data);
+
+        const botReply = data.reply || "No response received from server.";
+
+        const emergencyClass = data.is_emergency ? "bot-message emergency" : "bot-message";
+
+        chatBox.innerHTML += `
+            <div class="${emergencyClass}">
+                ${botReply}
+            </div>
+        `;
+
+        // Update emergency status panel
+        if (data.is_emergency) {
+          emergencyStatus.textContent = "⚠️ Emergency Detected";
+          emergencyStatus.style.color = "#ef4444";
+          emergencyStatus.style.fontWeight = "700";
+        }
+
+        // Update hospitals panel
+        if (data.is_emergency) {
+          if (data.hospitals && data.hospitals.length > 0) {
+            let html = "";
+
+            data.hospitals.forEach(h => {
+              html += `
+                <div class="hospital-item">
+                  <strong>${h.name}</strong><br>
+                  ${h.address}<br>
+                  ${h.rating ? "⭐ " + h.rating : ""}
+                  <br>
+                  <a href="${h.maps_url}" target="_blank">View on Map</a>
+                </div>
+              `;
+            });
+
+            hospitalsDiv.innerHTML = html;
+          } else if (userLat === null || userLng === null) {
+            hospitalsDiv.innerHTML = `<p style="color:#ef4444;">Location access denied. Please enable location permissions in your browser to find nearby hospitals.</p>`;
+          } else {
+            hospitalsDiv.innerHTML = `<p>No hospitals found nearby. Try calling local emergency services directly.</p>`;
+          }
+        }
+
+        chatBox.scrollTop = chatBox.scrollHeight;
+
+      } catch (error) {
+        console.error(error);
+
+        chatBox.innerHTML += `
+            <div class="bot-message">
+                Unable to connect to server.
+            </div>
+        `;
+      }
+    }
+
+    messageInput.addEventListener(
+      "keypress",
+      function (event) {
+        if (event.key === "Enter") {
+          sendMessage();
+        }
+      }
+    );
+
+  </script>
+
+</body>
+
+</html>
